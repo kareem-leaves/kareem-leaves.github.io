@@ -1,0 +1,558 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>نظام الإجازات</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="config.js"></script>
+<style>
+:root{
+  --bg:#FFF8D6; --surface:#FFFCEB; --surface-2:#FFEFA3; --fg:#33290A; --muted:#6B5B14; --line:#E8D783;
+  --accent:#FFD93D; --accent-ink:#33290A; --accent-soft:#FFE98A; --focus:#33290A;
+  --ok:#2E7D32; --ok-ink:#FFFFFF; --ok-soft:#D7EFC9;
+  --no:#C62828; --no-ink:#FFFFFF; --no-soft:#FFD9D2;
+  --wait:#7A5200; --wait-soft:#FFE08A;
+  --f-display:'Tajawal',system-ui,'Segoe UI',Tahoma,sans-serif;
+  --f-body:'Tajawal',system-ui,'Segoe UI',Tahoma,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#1F1B09; --surface:#2A2410; --surface-2:#3B3315; --fg:#FFF3B8; --muted:#CDBF72; --line:#51451A;
+    --accent:#FFD93D; --accent-ink:#2A2200; --accent-soft:#4F4210; --focus:#FFF3B8;
+    --ok:#7BD88F; --ok-ink:#0D2A12; --ok-soft:#1F3A22;
+    --no:#FF8A80; --no-ink:#3A0A06; --no-soft:#4A201D;
+    --wait:#FFD27A; --wait-soft:#4A3A10;
+  }
+}
+*{box-sizing:border-box}
+html{color-scheme:light dark}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.7;
+  padding-block:20px 56px;
+  padding-top:max(20px,env(safe-area-inset-top,0px));
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.app{max-width:1040px;margin-inline:auto}
+h1,h2,h3{font-family:var(--f-display);margin:0;text-wrap:balance;line-height:1.35}
+h1{font-size:30px;font-weight:700}
+h2{font-size:21px;font-weight:600;margin-bottom:10px}
+h3{font-size:17px;font-weight:600}
+p{margin:0 0 8px}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+header.top{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;justify-content:space-between;
+  border-bottom:3px solid var(--fg);padding-bottom:12px;margin-bottom:18px}
+.top .sub{color:var(--muted);margin:0;font-size:14px}
+.top-actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.btn{font:inherit;font-weight:600;border-radius:8px;border:1.5px solid var(--fg);background:transparent;color:var(--fg);
+  padding:7px 14px;cursor:pointer;min-height:40px}
+.btn:hover{background:var(--surface-2)}
+.btn.primary{font-weight:700}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn:focus-visible,.tab:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.primary:hover{filter:brightness(.96)}
+.btn.ok{background:var(--ok);color:var(--ok-ink);border-color:var(--ok)}
+.btn.no{background:transparent;color:var(--no);border-color:var(--no)}
+.btn.no.solid{background:var(--no);color:var(--no-ink)}
+.btn.link{border:0;background:none;color:var(--fg);text-decoration:underline;padding:4px 6px;min-height:0}
+.btn.sm{padding:4px 10px;min-height:32px;font-size:13px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px}
+.stack{display:grid;gap:12px}
+.field{display:grid;gap:4px;margin-bottom:12px}
+label{font-weight:600;font-size:13px}
+input,select,textarea{font:inherit;color:var(--fg);background:var(--bg);border:1.5px solid var(--line);border-radius:8px;padding:8px 10px;width:100%;min-height:42px}
+textarea{resize:vertical;min-height:72px}
+.row2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.cols{display:grid;grid-template-columns:minmax(0,360px) minmax(0,1fr);gap:22px;align-items:start}
+@media (max-width:780px){.cols{grid-template-columns:minmax(0,1fr)}}
+.tabs{display:flex;gap:4px;overflow-x:auto;border-bottom:1px solid var(--line);margin-bottom:16px}
+.tab{font:inherit;background:none;border:0;border-bottom:3px solid transparent;color:var(--muted);padding:9px 14px;cursor:pointer;white-space:nowrap;font-weight:500}
+.tab[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--fg);font-weight:700}
+.count{display:inline-block;min-width:22px;padding:0 6px;border-radius:99px;background:var(--wait-soft);color:var(--wait);font-size:12px;font-weight:700;text-align:center;margin-inline-start:6px}
+.pill{display:inline-block;padding:1px 10px;border-radius:99px;font-size:13px;font-weight:600;white-space:nowrap}
+.pill.wait{background:var(--wait-soft);color:var(--wait)}
+.pill.ok{background:var(--ok-soft);color:var(--ok)}
+.pill.no{background:var(--no-soft);color:var(--no)}
+.stamp{display:inline-block;margin:6px 8px;font-weight:700;font-size:15px;border:2px solid currentColor;border-radius:6px;padding:2px 12px;white-space:nowrap}
+.stamp.ok{color:var(--ok)} .stamp.no{color:var(--no)}
+.leave{display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;align-items:flex-start}
+.leave .meta{flex:1 1 220px;min-width:0}
+.leave .type{font-weight:700;font-size:16px}
+.num{font-variant-numeric:tabular-nums}
+.reason{margin-top:10px;padding:10px 12px;border-radius:8px;background:var(--no-soft);border:1px solid var(--no)}
+.reason b{color:var(--no)}
+.warn{margin-top:10px;padding:8px 12px;border-radius:8px;background:var(--wait-soft);color:var(--wait);font-size:14px;font-weight:500}
+.note{margin-top:8px;padding:8px 12px;border-radius:8px;background:var(--surface-2);font-size:14px}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;align-items:center}
+.empty{border:1.5px dashed var(--line);border-radius:10px;padding:26px 18px;text-align:center;color:var(--muted)}
+.empty h3{color:var(--fg);margin-bottom:6px}
+.banner{margin-bottom:14px;padding:9px 14px;border-radius:8px;font-weight:500;background:var(--accent-soft);color:var(--fg)}
+.banner.err{background:var(--no-soft);border:1px solid var(--no)}
+.banner:empty{display:none}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:640px}
+th,td{padding:10px 12px;text-align:start;border-bottom:1px solid var(--line);vertical-align:top;font-variant-numeric:tabular-nums}
+th{background:var(--surface-2);font-size:13px;color:var(--muted);font-weight:700;white-space:nowrap}
+tr:last-child td{border-bottom:0}
+.filters{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:12px}
+.filters .field{margin:0;flex:1 1 150px}
+.cal-head{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:10px}
+.calwrap{overflow-x:auto}
+.cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));min-width:620px;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--surface)}
+.cal .dow{background:var(--surface-2);padding:6px;text-align:center;font-weight:700;font-size:13px}
+.cal .cell{min-height:88px;padding:4px;border-top:1px solid var(--line);border-inline-start:1px solid var(--line);min-width:0}
+.cal .cell.off{background:var(--surface-2)}
+.cal .cell.blank{background:var(--bg)}
+.cal .dn{display:inline-block;min-width:24px;text-align:center;border-radius:99px;font-size:13px;font-weight:600;color:var(--muted)}
+.cal .cell.today .dn{background:var(--accent);color:var(--accent-ink)}
+.chip{display:block;font-size:12px;padding:1px 6px;border-radius:4px;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:var(--accent-soft);color:var(--fg)}
+.chip.pend{background:transparent;border:1px dashed var(--wait);color:var(--wait)}
+.chip.more{background:none;color:var(--muted)}
+.wk{display:flex;flex-wrap:wrap;gap:6px 16px}
+.wk label{display:flex;align-items:center;gap:6px;font-weight:500;font-size:14px}
+.wk input{width:auto;min-height:0}
+.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:13px;color:var(--muted);margin-top:10px}
+.login{max-width:420px;margin:30px auto 0;text-align:center}
+.login .btn{width:100%;margin-top:14px}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <header class="top">
+    <div>
+      <h1>نظام الإجازات</h1>
+      <p class="sub" id="sub"></p>
+    </div>
+    <div class="top-actions">
+      <span id="headInfo"></span>
+      <button class="btn primary" id="exportBtn" type="button" hidden>تحميل جدول الإجازات (Excel)</button>
+    </div>
+  </header>
+  <div class="banner" id="banner" role="status"></div>
+  <main id="view"><div class="empty"><h3>ثواني وبيفتح</h3></div></main>
+</div>
+
+<script type="module">
+import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {getAuth,onAuthStateChanged,GoogleAuthProvider,signInWithPopup,signInWithRedirect,signOut} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import {getFirestore,collection,doc,onSnapshot,setDoc,addDoc,updateDoc,deleteDoc,query,where} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const D=document;
+const $=s=>D.querySelector(s);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad=n=>String(n).padStart(2,'0');
+const TYPES=['إجازة اعتيادية','إجازة عارضة','إجازة مرضية','إجازة بدون مرتب','إجازة أخرى'];
+const DOW=['السبت','الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة'];
+const DOW_JS=[6,0,1,2,3,4,5];
+const DAY_MS=86400000;
+const isDate=s=>typeof s==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(s);
+const P=s=>{const a=s.split('-').map(Number);return Date.UTC(a[0],a[1]-1,a[2])};
+const ISO=ms=>{const d=new Date(ms);return d.getUTCFullYear()+'-'+pad(d.getUTCMonth()+1)+'-'+pad(d.getUTCDate())};
+const localIso=ms=>{const d=new Date(ms);return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())};
+const today=()=>localIso(Date.now());
+const dayWord=n=>n===1?'يوم واحد':n===2?'يومان':n<=10?n+' أيام':n+' يوما';
+const workWord=n=>n===0?'بدون أيام عمل':n===1?'يوم عمل واحد':n===2?'يوما عمل':n<=10?n+' أيام عمل':n+' يوم عمل';
+let dfLong,dfMonth,dfDay,dfStamp;
+try{
+  dfLong=new Intl.DateTimeFormat('ar-EG-u-nu-latn',{weekday:'long',day:'numeric',month:'long',year:'numeric',timeZone:'UTC'});
+  dfMonth=new Intl.DateTimeFormat('ar-EG-u-nu-latn',{month:'long',year:'numeric',timeZone:'UTC'});
+  dfDay=new Intl.DateTimeFormat('ar-EG-u-nu-latn',{weekday:'long',timeZone:'UTC'});
+  dfStamp=new Intl.DateTimeFormat('ar-EG-u-nu-latn',{day:'numeric',month:'long',year:'numeric'});
+}catch(e){}
+const fmt=s=>dfLong?dfLong.format(P(s)):s;
+const fmtStamp=ms=>ms&&dfStamp?dfStamp.format(new Date(ms)):(ms?localIso(ms):'');
+
+const state={fb:null,auth:null,db:null,user:null,owner:false,loaded:false,slow:false,err:'',weekend:[5,6],
+  staff:new Map(),reqs:new Map(),myStaff:null,editName:false,gateMode:'',unsubs:[],
+  tab:'pending',rejecting:null,drafts:{},confirm:null,busy:false,f:{uid:'',status:'',when:''},cal:null};
+{const n=new Date();state.cal={y:n.getFullYear(),m:n.getMonth()}}
+
+const calDays=(a,b)=>Math.round((P(b)-P(a))/DAY_MS)+1;
+const workDays=(a,b)=>{let n=0;for(let t=P(a);t<=P(b);t+=DAY_MS){if(state.weekend.indexOf(new Date(t).getUTCDay())<0)n++}return n};
+const firstName=n=>String(n||'').trim().split(/\s+/)[0]||'';
+function banner(text,kind){const b=$('#banner');b.textContent=text||'';b.className='banner'+(kind==='err'?' err':'')}
+let flashT=null;
+function flash(t){banner(t);clearTimeout(flashT);flashT=setTimeout(refreshBanner,4500)}
+function refreshBanner(){
+  if(state.err)banner(state.err,'err');
+  else if(!state.loaded&&state.slow)banner('الاتصال بطيء حاليا. جرب تعيد تحميل الصفحة لو الأمر طول.');
+  else banner('');
+}
+function onErr(e){
+  const c=e&&e.code;
+  state.err=c==='permission-denied'?'الحساب ده مش مسموح له بفتح هذه البيانات. تأكد إنك دخلت بالحساب الصحيح.':'حصلت مشكلة في تحميل البيانات ('+(c||'خطأ')+').';
+  refreshBanner();render();
+}
+const mapFrom=snap=>{const m=new Map();snap.forEach(d=>m.set(d.id,d.data()));return m};
+
+function mkRows(){
+  const out=[];
+  state.reqs.forEach((r,id)=>{
+    if(!isDate(r.start)||!isDate(r.end))return;
+    const st=r.status==='approved'||r.status==='rejected'?r.status:'pending';
+    const s=state.staff.get(r.uid);
+    out.push({key:id,id,uid:r.uid,name:r.name||(s&&s.name)||'موظف',type:r.type||'',start:r.start,end:r.end,note:r.note||'',
+      createdAt:r.createdAt||0,status:st,reason:r.reason||'',decidedAt:r.decidedAt||0});
+  });
+  return out;
+}
+const pill=st=>st==='approved'?'<span class="pill ok">موافق عليها</span>':st==='rejected'?'<span class="pill no">مرفوضة</span>':'<span class="pill wait">في انتظار القرار</span>';
+const span=r=>r.start===r.end?fmt(r.start):'من '+fmt(r.start)+' إلى '+fmt(r.end);
+const counts=r=>dayWord(calDays(r.start,r.end))+' ('+workWord(workDays(r.start,r.end))+')';
+
+/* ---------------- Login ---------------- */
+function showLogin(msg){
+  $('#sub').textContent='';$('#headInfo').innerHTML='';$('#exportBtn').hidden=true;
+  $('#view').innerHTML='<div class="card login"><h2>اهلا بيك</h2><p class="muted">ادخل بحساب جوجل (Gmail) عشان تطلب اجازة او تتابع طلباتك.</p>'+
+    '<button class="btn primary" type="button" id="login-btn">ادخل بحساب Google</button>'+
+    '<p class="small muted" style="margin-top:12px">لو فتحت اللينك من واتساب او ماسنجر، افتحه من Chrome او Safari عشان الدخول يشتغل.</p>'+
+    (msg?'<p class="small" style="color:var(--no)">'+esc(msg)+'</p>':'')+'</div>';
+}
+async function login(){
+  const prov=new GoogleAuthProvider();prov.setCustomParameters({prompt:'select_account'});
+  try{await signInWithPopup(state.auth,prov)}
+  catch(e){
+    if(e&&(e.code==='auth/popup-blocked'||e.code==='auth/operation-not-supported-in-this-environment')){try{await signInWithRedirect(state.auth,prov);return}catch(e2){}}
+    if(e&&(e.code==='auth/popup-closed-by-user'||e.code==='auth/cancelled-popup-request'))return;
+    showLogin(e&&e.code==='auth/unauthorized-domain'?'هذا الرابط غير مضاف في إعدادات Firebase (Authorized domains).':'حصلت مشكلة في تسجيل الدخول. جرب مرة أخرى.');
+  }
+}
+
+/* ---------------- Staff view ---------------- */
+function mountStaff(){
+  $('#sub').textContent='طلب إجازة ومتابعة الرد';
+  $('#view').innerHTML='<div class="cols"><section id="gate"></section><section><h2>طلباتي</h2><div id="myList" class="stack"></div></section></div>';
+  state.gateMode='';renderGate();renderStaffList();
+}
+function renderHeadInfo(){
+  const h=$('#headInfo');
+  const nm=state.owner?'المدير':(state.myStaff&&state.myStaff.name)||'';
+  h.innerHTML=(nm?'<span class="muted">'+esc(nm)+'</span> ':'')+
+    (!state.owner&&state.myStaff?'<button class="btn link" type="button" data-act="editname">غير الاسم</button> ':'')+
+    '<button class="btn link" type="button" data-act="logout">خروج</button>';
+}
+function renderGate(){
+  const g=$('#gate');if(!g)return;
+  if(!state.myStaff||state.editName){
+    state.gateMode='name';
+    g.innerHTML='<div class="card"><h2>اسمك</h2><p class="muted small">اكتب اسمك زي ما تحب يظهر في جدول الإجازات.</p>'+
+      '<div class="field"><label for="nm">الاسم</label><input id="nm" type="text" maxlength="60" autocomplete="name" value="'+esc((state.myStaff&&state.myStaff.name)||state.user.displayName||'')+'"></div>'+
+      '<div class="actions"><button class="btn primary" type="button" id="nm-save">حفظ</button>'+
+      (state.myStaff?'<button class="btn" type="button" data-act="cancelname">إلغاء</button>':'')+
+      '<span class="muted small" id="nm-msg" role="status"></span></div></div>';
+    return;
+  }
+  state.gateMode='form';
+  g.innerHTML='<div class="card"><h2>طلب اجازة جديد</h2>'+
+    '<div class="field"><label for="lv-type">نوع الإجازة</label><select id="lv-type">'+TYPES.map(t=>'<option>'+esc(t)+'</option>').join('')+'</select></div>'+
+    '<div class="row2"><div class="field"><label for="lv-start">من تاريخ</label><input id="lv-start" type="date"></div>'+
+    '<div class="field"><label for="lv-end">إلى تاريخ</label><input id="lv-end" type="date"></div></div>'+
+    '<p class="small muted" id="lv-sum">اختار التواريخ عشان يظهر عدد الأيام.</p>'+
+    '<div class="field"><label for="lv-note">ملاحظة (لو حابب)</label><textarea id="lv-note" maxlength="400"></textarea></div>'+
+    '<div class="actions"><button class="btn primary" type="button" id="lv-submit">ابعت الطلب</button><span class="small" id="lv-msg" role="status"></span></div></div>';
+}
+function updateSummary(){
+  const s=$('#lv-start'),e=$('#lv-end'),o=$('#lv-sum');if(!s||!o)return;
+  if(isDate(s.value)&&isDate(e.value)&&e.value>=s.value)o.textContent=counts({start:s.value,end:e.value});
+  else if(isDate(s.value)&&isDate(e.value))o.textContent='تاريخ النهاية قبل تاريخ البداية.';
+  else o.textContent='اختار التواريخ عشان يظهر عدد الأيام.';
+}
+function renderStaffList(){
+  const l=$('#myList');if(!l)return;
+  if(!state.loaded){l.innerHTML='<div class="empty"><p>بنحمل طلباتك</p></div>';return}
+  const rows=mkRows().sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  if(!rows.length){l.innerHTML='<div class="empty"><h3>لسه ما قدمتش أي طلب</h3><p>املأ النموذج وابعت الطلب، وهتشوف الرد هنا أول ما يتاخد قرار.</p></div>';return}
+  l.innerHTML=rows.map(r=>{
+    const stamp=r.status==='approved'?'<span class="stamp ok">موافق عليها</span>':r.status==='rejected'?'<span class="stamp no">مرفوضة</span>':pill('pending');
+    const cancel=r.status==='pending'?'<div class="actions"><button class="btn no sm'+(state.confirm===r.key?' solid':'')+'" type="button" data-act="cancelreq" data-key="'+esc(r.key)+'">'+(state.confirm===r.key?'اضغط تاني للتأكيد':'الغي الطلب')+'</button></div>':'';
+    return '<article class="card"><div class="leave"><div class="meta"><div class="type">'+esc(r.type)+'</div>'+
+      '<div>'+esc(span(r))+'</div><div class="small muted num">'+esc(counts(r))+'</div>'+
+      (r.note?'<div class="note">'+esc(r.note)+'</div>':'')+'</div><div>'+stamp+'</div></div>'+
+      (r.status==='rejected'?'<div class="reason"><b>سبب الرفض:</b> '+esc(r.reason||'لم يذكر سبب')+'</div>':'')+
+      (r.status!=='pending'&&r.decidedAt?'<div class="small muted" style="margin-top:8px">تاريخ القرار: '+esc(fmtStamp(r.decidedAt))+'</div>':'')+cancel+'</article>';
+  }).join('');
+}
+async function saveName(){
+  const v=($('#nm').value||'').trim(),m=$('#nm-msg');
+  if(!v){m.textContent='اكتب الاسم أولا.';return}
+  if(state.busy)return;state.busy=true;
+  try{
+    const joined=(state.myStaff&&state.myStaff.joinedAt)||Date.now();
+    await setDoc(doc(state.db,'staff',state.user.uid),{name:v,email:state.user.email,joinedAt:joined});
+    state.myStaff={name:v,email:state.user.email,joinedAt:joined};state.editName=false;
+    renderGate();renderHeadInfo();renderStaffList();
+  }catch(e){m.textContent='حصلت مشكلة في حفظ الاسم ('+((e&&e.code)||'خطأ')+').'}
+  state.busy=false;
+}
+async function submitLeave(){
+  const m=$('#lv-msg');
+  const type=$('#lv-type').value,start=$('#lv-start').value,end=$('#lv-end').value,note=($('#lv-note').value||'').trim();
+  const fail=t=>{m.style.color='var(--no)';m.textContent=t};
+  if(!isDate(start)||!isDate(end))return fail('اختار تاريخ البداية والنهاية.');
+  if(end<start)return fail('تاريخ النهاية لازم يكون بعد تاريخ البداية.');
+  if(calDays(start,end)>366)return fail('المدة أطول من سنة.');
+  const clash=mkRows().filter(r=>r.status!=='rejected'&&r.start<=end&&r.end>=start)[0];
+  if(clash)return fail('عندك طلب تاني في نفس الفترة ('+clash.type+': '+span(clash)+').');
+  if(state.busy)return;state.busy=true;$('#lv-submit').disabled=true;
+  try{
+    await addDoc(collection(state.db,'requests'),{uid:state.user.uid,name:state.myStaff.name,email:state.user.email,type,start,end,note,createdAt:Date.now(),status:'pending',reason:'',decidedAt:0});
+    $('#lv-start').value='';$('#lv-end').value='';$('#lv-note').value='';updateSummary();
+    m.style.color='var(--ok)';m.textContent='الطلب اتبعت. هتشوف الرد هنا.';
+  }catch(e){fail('حصلت مشكلة في إرسال الطلب ('+((e&&e.code)||'خطأ')+').')}
+  state.busy=false;const b=$('#lv-submit');if(b)b.disabled=false;
+}
+async function cancelReq(key){
+  if(state.confirm!==key){state.confirm=key;renderStaffList();setTimeout(()=>{if(state.confirm===key){state.confirm=null;renderStaffList()}},5000);return}
+  state.confirm=null;
+  try{await deleteDoc(doc(state.db,'requests',key));flash('الطلب اتلغى.')}catch(e){flash('حصلت مشكلة في إلغاء الطلب.')}
+  renderStaffList();
+}
+
+/* ---------------- Admin view ---------------- */
+function adminTabs(pc){
+  const T=[['pending','طلبات جديدة'],['table','الجدول'],['cal','التقويم'],['staff','الموظفون']];
+  return '<div class="tabs" role="tablist">'+T.map(t=>'<button class="tab" role="tab" type="button" data-act="tab" data-tab="'+t[0]+'" aria-selected="'+(state.tab===t[0])+'">'+t[1]+(t[0]==='pending'&&pc?'<span class="count">'+pc+'</span>':'')+'</button>').join('')+'</div>';
+}
+function adminPending(rows){
+  const pend=rows.filter(r=>r.status==='pending').sort((a,b)=>a.createdAt-b.createdAt);
+  if(!pend.length)return '<div class="empty"><h3>مفيش طلبات في الانتظار</h3><p>أي طلب جديد من الموظفين هيظهر هنا فورا.</p></div>';
+  const appr=rows.filter(r=>r.status==='approved');
+  return '<div class="stack">'+pend.map(r=>{
+    const names=Array.from(new Set(appr.filter(a=>a.start<=r.end&&a.end>=r.start).map(a=>a.name)));
+    const rej=state.rejecting===r.key;
+    return '<article class="card"><div class="leave"><div class="meta"><div class="type">'+esc(r.name)+' <span class="muted" style="font-weight:500">· '+esc(r.type)+'</span></div>'+
+      '<div>'+esc(span(r))+'</div><div class="small muted num">'+esc(counts(r))+'</div>'+
+      (r.note?'<div class="note">'+esc(r.note)+'</div>':'')+'</div><div class="small muted">طلبت '+esc(fmtStamp(r.createdAt))+'</div></div>'+
+      (names.length?'<div class="warn">في نفس الفترة إجازة معتمدة ل: '+names.map(esc).join('، ')+'</div>':'')+
+      (rej?'<div class="field" style="margin-top:12px"><label for="rj-'+esc(r.key)+'">سبب الرفض (هيظهر للموظف)</label><textarea id="rj-'+esc(r.key)+'" data-draft="'+esc(r.key)+'" maxlength="400">'+esc(state.drafts[r.key]||'')+'</textarea></div>'+
+        '<div class="actions"><button class="btn no solid" type="button" data-act="rejectgo" data-key="'+esc(r.key)+'">تأكيد الرفض</button><button class="btn" type="button" data-act="rejectcancel">رجوع</button></div>'
+       :'<div class="actions"><button class="btn ok" type="button" data-act="approve" data-key="'+esc(r.key)+'">موافقة</button><button class="btn no" type="button" data-act="reject" data-key="'+esc(r.key)+'">رفض</button></div>')+'</article>';
+  }).join('')+'</div>';
+}
+function staffSorted(){return Array.from(state.staff.entries()).sort((a,b)=>String(a[1].name).localeCompare(String(b[1].name),'ar'))}
+function adminTable(rows){
+  const f=state.f,t=today();
+  const list=rows.filter(r=>{
+    if(f.uid&&r.uid!==f.uid)return false;
+    if(f.status&&r.status!==f.status)return false;
+    if(f.when==='upcoming'&&r.end<t)return false;
+    if(f.when==='past'&&r.end>=t)return false;
+    return true;
+  }).sort((a,b)=>a.start<b.start?1:a.start>b.start?-1:0);
+  const filters='<div class="filters"><div class="field"><label for="f-uid">الموظف</label><select id="f-uid" data-filter="uid"><option value="">الكل</option>'+
+    staffSorted().map(s=>'<option value="'+esc(s[0])+'"'+(f.uid===s[0]?' selected':'')+'>'+esc(s[1].name)+'</option>').join('')+'</select></div>'+
+    '<div class="field"><label for="f-status">الحالة</label><select id="f-status" data-filter="status"><option value="">الكل</option>'+
+    [['pending','في الانتظار'],['approved','موافق عليها'],['rejected','مرفوضة']].map(o=>'<option value="'+o[0]+'"'+(f.status===o[0]?' selected':'')+'>'+o[1]+'</option>').join('')+'</select></div>'+
+    '<div class="field"><label for="f-when">التوقيت</label><select id="f-when" data-filter="when"><option value="">الكل</option><option value="upcoming"'+(f.when==='upcoming'?' selected':'')+'>جارية وقادمة</option><option value="past"'+(f.when==='past'?' selected':'')+'>سابقة</option></select></div></div>';
+  if(!list.length)return filters+'<div class="empty"><h3>مفيش إجازات مطابقة</h3><p>غير الفلاتر أو انتظر طلبات جديدة.</p></div>';
+  return filters+'<div class="tablewrap"><table><thead><tr><th>الموظف</th><th>النوع</th><th>من</th><th>إلى</th><th>الأيام</th><th>الحالة</th><th></th></tr></thead><tbody>'+
+    list.map(r=>{
+      const undo=r.status!=='pending'?'<button class="btn sm'+(state.confirm===r.key?' no solid':'')+'" type="button" data-act="undo" data-key="'+esc(r.key)+'">'+(state.confirm===r.key?'اضغط تاني للتأكيد':'تراجع عن القرار')+'</button>':'';
+      return '<tr><td><b>'+esc(r.name)+'</b></td><td>'+esc(r.type)+'</td><td>'+esc(r.start)+'</td><td>'+esc(r.end)+'</td><td>'+calDays(r.start,r.end)+' <span class="muted small">('+workDays(r.start,r.end)+' عمل)</span></td>'+
+        '<td>'+pill(r.status)+(r.status==='rejected'&&r.reason?'<div class="small muted" style="margin-top:4px">'+esc(r.reason)+'</div>':'')+'</td><td>'+undo+'</td></tr>';
+    }).join('')+'</tbody></table></div>';
+}
+function adminCal(rows){
+  const y=state.cal.y,m=state.cal.m;
+  const first=Date.UTC(y,m,1),dim=new Date(Date.UTC(y,m+1,0)).getUTCDate();
+  const offset=(new Date(first).getUTCDay()+1)%7,total=Math.ceil((offset+dim)/7)*7,t=today();
+  const live=rows.filter(r=>r.status!=='rejected');
+  let cells=DOW.map(d=>'<div class="dow">'+d+'</div>').join('');
+  for(let i=0;i<total;i++){
+    const dn=i-offset+1;
+    if(dn<1||dn>dim){cells+='<div class="cell blank"></div>';continue}
+    const iso=ISO(Date.UTC(y,m,dn)),wk=state.weekend.indexOf(new Date(Date.UTC(y,m,dn)).getUTCDay())>=0;
+    const on=live.filter(r=>r.start<=iso&&r.end>=iso);
+    let chips=on.slice(0,3).map(r=>'<span class="chip'+(r.status==='pending'?' pend':'')+'" title="'+esc(r.name+' - '+r.type)+'">'+esc(firstName(r.name))+'</span>').join('');
+    if(on.length>3)chips+='<span class="chip more">+'+(on.length-3)+' آخرين</span>';
+    cells+='<div class="cell'+(wk?' off':'')+(iso===t?' today':'')+'"><span class="dn num">'+dn+'</span>'+chips+'</div>';
+  }
+  return '<div class="cal-head"><h2 style="margin:0">'+esc(dfMonth?dfMonth.format(first):(y+'-'+pad(m+1)))+'</h2><div class="actions" style="margin:0">'+
+    '<button class="btn sm" type="button" data-act="calnext">الشهر السابق</button><button class="btn sm" type="button" data-act="caltoday">اليوم</button><button class="btn sm" type="button" data-act="calprev">الشهر التالي</button></div></div>'+
+    '<div class="calwrap"><div class="cal">'+cells+'</div></div>'+
+    '<div class="legend"><span><span class="chip" style="display:inline-block">اسم</span> إجازة معتمدة</span><span><span class="chip pend" style="display:inline-block">اسم</span> في انتظار القرار</span><span>الخلفية الرمادية: أيام الإجازة الأسبوعية</span></div>';
+}
+function adminStaff(rows){
+  const Y=new Date().getFullYear(),t=today(),list=staffSorted();
+  const wk='<div class="card"><h3 style="margin-bottom:8px">أيام الإجازة الأسبوعية</h3><p class="small muted">تستبعد من حساب «أيام العمل» في الجدول وملف Excel.</p><div class="wk">'+
+    DOW_JS.map((v,i)=>'<label><input type="checkbox" data-wk="'+v+'"'+(state.weekend.indexOf(v)>=0?' checked':'')+'>'+DOW[i]+'</label>').join('')+'</div></div>';
+  if(!list.length)return wk+'<div class="empty" style="margin-top:12px"><h3>لسه مفيش موظفين</h3><p>الموظف بيظهر هنا بعد ما يفتح الرابط ويدخل بحساب Google ويكتب اسمه.</p></div>';
+  return wk+'<div class="tablewrap" style="margin-top:12px"><table><thead><tr><th>الموظف</th><th>البريد</th><th>إجازات معتمدة</th><th>أيام عمل مأخوذة هذه السنة</th><th>قادمة أو جارية</th><th>في الانتظار</th></tr></thead><tbody>'+
+    list.map(e=>{
+      const mine=rows.filter(r=>r.uid===e[0]),ap=mine.filter(r=>r.status==='approved');
+      let used=0;
+      ap.forEach(r=>{const s=r.start>Y+'-01-01'?r.start:Y+'-01-01',en=r.end<Y+'-12-31'?r.end:Y+'-12-31',cap=en<t?en:t;if(s<=cap)used+=workDays(s,cap)});
+      return '<tr><td><b>'+esc(e[1].name)+'</b></td><td class="small">'+esc(e[1].email||'')+'</td><td>'+ap.length+'</td><td>'+used+'</td><td>'+ap.filter(r=>r.end>=t).length+'</td><td>'+mine.filter(r=>r.status==='pending').length+'</td></tr>';
+    }).join('')+'</tbody></table></div>';
+}
+function renderAdmin(){
+  const v=$('#view');if(!v)return;
+  const ae=D.activeElement;let fk=null,fs=0;
+  if(ae&&ae.dataset&&ae.dataset.draft){fk=ae.dataset.draft;fs=ae.selectionStart||0}
+  const rows=mkRows(),pc=rows.filter(r=>r.status==='pending').length;
+  let body;
+  if(!state.loaded&&!state.err)body='<div class="empty"><h3>بنحمل الطلبات</h3></div>';
+  else body=state.tab==='table'?adminTable(rows):state.tab==='cal'?adminCal(rows):state.tab==='staff'?adminStaff(rows):adminPending(rows);
+  v.innerHTML=adminTabs(pc)+body;
+  if(fk){v.querySelectorAll('[data-draft]').forEach(el=>{if(el.dataset.draft===fk){el.focus();try{el.setSelectionRange(fs,fs)}catch(e){}}})}
+}
+function render(){if(!state.user)return;if(state.owner)renderAdmin();else renderStaffList()}
+async function decide(key,status,reason){
+  const r=mkRows().filter(x=>x.key===key)[0];if(!r||state.busy)return;state.busy=true;
+  try{
+    await updateDoc(doc(state.db,'requests',key),{status,reason:reason||'',decidedAt:Date.now()});
+    state.rejecting=null;delete state.drafts[key];
+    flash(status==='approved'?'تمت الموافقة على إجازة '+r.name+'.':'تم رفض الطلب وسيظهر السبب ل '+r.name+'.');
+  }catch(e){flash('حصلت مشكلة في حفظ القرار ('+((e&&e.code)||'خطأ')+').')}
+  state.busy=false;render();
+}
+async function undo(key){
+  if(state.confirm!==key){state.confirm=key;render();setTimeout(()=>{if(state.confirm===key){state.confirm=null;render()}},5000);return}
+  state.confirm=null;
+  try{await updateDoc(doc(state.db,'requests',key),{status:'pending',reason:'',decidedAt:0});flash('تم التراجع، والطلب رجع لقائمة الانتظار.')}
+  catch(e){flash('حصلت مشكلة في التراجع عن القرار.')}
+  render();
+}
+async function saveWeekend(){
+  const vals=[];D.querySelectorAll('[data-wk]').forEach(c=>{if(c.checked)vals.push(Number(c.dataset.wk))});
+  try{await setDoc(doc(state.db,'settings','config'),{weekend:vals});flash('تم حفظ أيام الإجازة الأسبوعية.')}
+  catch(e){flash('حصلت مشكلة في حفظ الإعداد.')}
+}
+
+/* ---------------- Excel ---------------- */
+function exportXlsx(){
+  const t=today(),rows=mkRows().sort((a,b)=>a.start<b.start?-1:a.start>b.start?1:a.name.localeCompare(b.name,'ar'));
+  const stL={approved:'موافق عليها',rejected:'مرفوضة',pending:'في الانتظار'};
+  const timing=r=>r.status==='rejected'?'-':r.end<t?'سابقة':r.start>t?'قادمة':'جارية';
+  const head=['الموظف','نوع الإجازة','من تاريخ','إلى تاريخ','عدد الأيام','أيام العمل','الحالة','التوقيت','سبب الرفض','ملاحظة الموظف','تاريخ الطلب','تاريخ القرار'];
+  const data=rows.map(r=>[r.name,r.type,r.start,r.end,calDays(r.start,r.end),workDays(r.start,r.end),stL[r.status],timing(r),r.reason||'',r.note||'',r.createdAt?localIso(r.createdAt):'',r.decidedAt?localIso(r.decidedAt):'']);
+  const dhead=['التاريخ','اليوم','الموظف','نوع الإجازة','الحالة','يوم عمل؟'];
+  const daily=[];
+  rows.forEach(r=>{
+    if(r.status==='rejected')return;
+    for(let x=P(r.start);x<=P(r.end);x+=DAY_MS){
+      const wk=state.weekend.indexOf(new Date(x).getUTCDay())>=0;
+      daily.push([ISO(x),dfDay?dfDay.format(x):'',r.name,r.type,stL[r.status],wk?'لا (إجازة أسبوعية)':'نعم']);
+    }
+  });
+  daily.sort((a,b)=>a[0]<b[0]?-1:a[0]>b[0]?1:String(a[2]).localeCompare(String(b[2]),'ar'));
+  const shead=['الموظف','إجازات معتمدة','إجمالي الأيام المعتمدة','إجمالي أيام العمل المعتمدة','قادمة أو جارية (معتمدة)','طلبات في الانتظار'];
+  const sum=staffSorted().map(e=>{
+    const mine=rows.filter(r=>r.uid===e[0]),ap=mine.filter(r=>r.status==='approved');
+    let cd=0,wd=0;ap.forEach(r=>{cd+=calDays(r.start,r.end);wd+=workDays(r.start,r.end)});
+    return [e[1].name,ap.length,cd,wd,ap.filter(r=>r.end>=t).length,mine.filter(r=>r.status==='pending').length];
+  });
+  try{
+    const X=window.XLSX;
+    if(X){
+      const wb=X.utils.book_new();
+      const add=(name,h,d,w)=>{
+        const ws=X.utils.aoa_to_sheet([h].concat(d));
+        ws['!cols']=w.map(n=>({wch:n}));
+        ws['!autofilter']={ref:X.utils.encode_range({s:{r:0,c:0},e:{r:Math.max(d.length,1),c:h.length-1}})};
+        X.utils.book_append_sheet(wb,ws,name);
+      };
+      add('كل الإجازات',head,data,[22,18,12,12,10,10,14,10,30,30,12,12]);
+      add('تفصيل الأيام',dhead,daily,[12,12,22,18,14,18]);
+      add('ملخص الموظفين',shead,sum,[22,14,20,24,22,18]);
+      wb.Workbook={Views:[{RTL:true}]};
+      X.writeFile(wb,'leaves-'+t+'.xlsx');
+    }else{
+      const q=c=>'"'+String(c==null?'':c).replace(/"/g,'""')+'"';
+      const csv='﻿'+[head].concat(data).map(r=>r.map(q).join(',')).join('\r\n');
+      const a=D.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.download='leaves-'+t+'.csv';D.body.appendChild(a);a.click();a.remove();
+    }
+    flash('تم تحميل الملف.');
+  }catch(e){flash('حصلت مشكلة في تجهيز الملف.')}
+}
+
+/* ---------------- Data ---------------- */
+function stopAll(){state.unsubs.forEach(u=>u());state.unsubs=[];state.reqs=new Map();state.staff=new Map();state.myStaff=null;state.loaded=false;state.err=''}
+function markLoaded(s){if(s.metadata&&s.metadata.fromCache)return;if(!state.loaded){state.loaded=true;refreshBanner()}}
+function start(user){
+  state.user=user;
+  state.owner=!!user.email&&user.email.toLowerCase()===String(window.ADMIN_EMAIL).trim().toLowerCase();
+  const db=state.db,uid=user.uid;
+  state.unsubs.push(onSnapshot(doc(db,'settings','config'),s=>{
+    const d=s.exists()?s.data():null;
+    state.weekend=d&&Array.isArray(d.weekend)?d.weekend.filter(n=>typeof n==='number'):[5,6];render();
+  },()=>{}));
+  renderHeadInfo();
+  if(state.owner){
+    $('#sub').textContent='لوحة الموافقات';$('#exportBtn').hidden=false;
+    state.unsubs.push(onSnapshot(collection(db,'staff'),s=>{state.staff=mapFrom(s);render()},onErr));
+    state.unsubs.push(onSnapshot(collection(db,'requests'),s=>{markLoaded(s);state.reqs=mapFrom(s);render()},onErr));
+    render();
+  }else{
+    $('#exportBtn').hidden=true;mountStaff();
+    state.unsubs.push(onSnapshot(doc(db,'staff',uid),s=>{
+      markLoaded(s);
+      state.myStaff=s.exists()?s.data():null;
+      if(state.myStaff)state.staff.set(uid,state.myStaff);
+      const need=(!state.myStaff||state.editName)?'name':'form';
+      if(need!==state.gateMode)renderGate();
+      renderHeadInfo();renderStaffList();
+    },onErr));
+    state.unsubs.push(onSnapshot(query(collection(db,'requests'),where('uid','==',uid)),s=>{state.reqs=mapFrom(s);renderStaffList()},onErr));
+  }
+}
+
+/* ---------------- Events ---------------- */
+D.addEventListener('click',e=>{
+  const el=e.target.closest('[data-act],#nm-save,#lv-submit,#exportBtn,#login-btn');if(!el)return;
+  if(el.id==='login-btn')return login();
+  if(el.id==='nm-save')return saveName();
+  if(el.id==='lv-submit')return submitLeave();
+  if(el.id==='exportBtn')return exportXlsx();
+  const act=el.dataset.act,key=el.dataset.key;
+  if(act==='logout'){signOut(state.auth);return}
+  if(act==='tab'){state.tab=el.dataset.tab;state.rejecting=null;state.confirm=null;render()}
+  else if(act==='approve')decide(key,'approved','');
+  else if(act==='reject'){state.rejecting=key;render()}
+  else if(act==='rejectcancel'){state.rejecting=null;render()}
+  else if(act==='rejectgo'){
+    const reason=(state.drafts[key]||'').trim();
+    if(!reason){flash('اكتب سبب الرفض ليظهر للموظف.');return}
+    decide(key,'rejected',reason);
+  }
+  else if(act==='undo')undo(key);
+  else if(act==='calprev'){const c=state.cal;state.cal=c.m===11?{y:c.y+1,m:0}:{y:c.y,m:c.m+1};render()}
+  else if(act==='calnext'){const c=state.cal;state.cal=c.m===0?{y:c.y-1,m:11}:{y:c.y,m:c.m-1};render()}
+  else if(act==='caltoday'){const n=new Date();state.cal={y:n.getFullYear(),m:n.getMonth()};render()}
+  else if(act==='editname'){state.editName=true;renderGate()}
+  else if(act==='cancelname'){state.editName=false;renderGate()}
+  else if(act==='cancelreq')cancelReq(key);
+});
+D.addEventListener('input',e=>{
+  const t=e.target;
+  if(t.dataset&&t.dataset.draft)state.drafts[t.dataset.draft]=t.value;
+  if(t.id==='lv-start'){const en=$('#lv-end');if(en&&(!en.value||en.value<t.value))en.value=t.value;updateSummary()}
+  if(t.id==='lv-end')updateSummary();
+});
+D.addEventListener('change',e=>{
+  const t=e.target;
+  if(t.dataset&&t.dataset.filter){state.f[t.dataset.filter]=t.value;render()}
+  if(t.dataset&&t.dataset.wk!==undefined)saveWeekend();
+  if(t.id==='lv-start'||t.id==='lv-end')updateSummary();
+});
+
+/* ---------------- Boot ---------------- */
+(function boot(){
+  const cfg=window.FIREBASE_CONFIG,admin=window.ADMIN_EMAIL;
+  if(!cfg||!cfg.apiKey||/ضع-هنا/.test(cfg.apiKey+cfg.projectId)||!admin||/ضع-هنا/.test(admin)){
+    $('#view').innerHTML='<div class="empty"><h3>النظام محتاج إعداد</h3><p>افتح ملف config.js واكتب بريد المدير وبيانات Firebase، وراجع ملف SETUP-AR.md.</p></div>';return;
+  }
+  setTimeout(()=>{if(!state.loaded){state.slow=true;refreshBanner()}},10000);
+  state.fb=initializeApp(cfg);state.auth=getAuth(state.fb);state.db=getFirestore(state.fb);
+  onAuthStateChanged(state.auth,user=>{
+    stopAll();
+    if(!user){state.user=null;showLogin();return}
+    if(!user.email){showLogin('الحساب ده مالوش بريد إلكتروني.');return}
+    start(user);
+  });
+})();
+</script>
+</body>
+</html>
